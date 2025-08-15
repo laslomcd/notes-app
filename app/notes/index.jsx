@@ -1,28 +1,58 @@
-import { useState } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { useEffect, useState } from "react";
+import { ActivityIndicator, Alert, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import notesService from "../../services/noteService";
 import AddNoteModal from "../components/AddNoteModal";
 import NoteList from "../components/NoteList";
 
 const NoteScreen = () => {
-	const [notes, setNotes] = useState([
-		{ id: "1", text: "Note One" },
-		{ id: "2", text: "Note Two" },
-		{ id: "3", text: "Note Three" },
-	]);
+	const [notes, setNotes] = useState([]);
 	const [modalVisable, setModalVisable] = useState(false);
 	const [newNote, setNewNote] = useState("");
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState(null);
+
+	useEffect(() => {
+		fetchNotes();
+	}, []);
+
+	const fetchNotes = async () => {
+		setLoading(true);
+		const response = await notesService.getNotes();
+		if (response.error) {
+			setError(response.error);
+			Alert.alert("Error", response.error);
+		} else {
+			setNotes(response.data);
+			setError(null);
+		}
+		setLoading(false);
+	};
 
 	// Add New Note
-	const addNote = () => {
+	const addNote = async () => {
 		if (newNote.trim() === "") return;
-		setNotes((prevNotes) => [...prevNotes, { id: Date.now.toString(), text: newNote }]);
+
+		const response = await notesService.addNote(newNote);
+		if (response.error) {
+			Alert.alert("Error", response.error);
+		} else {
+			setNotes([...notes, response.data]);
+		}
+
 		setNewNote("");
 		setModalVisable(false);
 	};
 
 	return (
 		<View style={styles.container}>
-			<NoteList notes={notes} />
+			{loading ? (
+				<ActivityIndicator size="large" color="#007bff" />
+			) : (
+				<>
+					{error && <Text style={styles.errorText}>{error}</Text>}
+					<NoteList notes={notes} />
+				</>
+			)}
 			<TouchableOpacity style={styles.addButton} onPress={() => setModalVisable(true)}>
 				<Text style={styles.addButtonText}>+ Add Note</Text>
 			</TouchableOpacity>
@@ -57,6 +87,12 @@ const styles = StyleSheet.create({
 		color: "#fff",
 		fontSize: 18,
 		fontWeight: "bold",
+	},
+	errorText: {
+		color: "red",
+		textAlign: "center",
+		marginBottom: 10,
+		fontSize: 16,
 	},
 });
 
